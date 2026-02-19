@@ -8,9 +8,33 @@ st.set_page_config(page_title="Browser Share Config Generator", layout="wide")
 
 st.title("Browser Share LGF Config Generator")
 
-# -------------------------------
-# Helper Function
-# -------------------------------
+# =====================================================
+# DOWNLOAD TEMPLATE SECTION
+# =====================================================
+
+st.subheader("Download CSV Template")
+
+template_df = pd.DataFrame(columns=[
+    "customer", "platform", "web_or_app", "url", "location_id",
+    "city_display_name", "category", "sub_category",
+    "sub_sub_category", "sub_sub_sub_category",
+    "sub_sub_sub_sub_category"
+])
+
+csv_template = template_df.to_csv(index=False).encode("utf-8")
+
+st.download_button(
+    label="Download CSV Template",
+    data=csv_template,
+    file_name="Browsershare_template.csv",
+    mime="text/csv"
+)
+
+st.divider()
+
+# =====================================================
+# HELPER FUNCTIONS
+# =====================================================
 
 def trim_strings(df):
     for col in df.columns:
@@ -26,19 +50,20 @@ def clean_input_detail(detail_str):
     except:
         return detail_str
 
-# -------------------------------
-# Input Selection
-# -------------------------------
+# =====================================================
+# INPUT METHOD SELECTION
+# =====================================================
 
 method = st.radio("Choose Input Method", ["CSV Upload", "Manual Entry"])
 
 data_list = []
 
-# -------------------------------
-# CSV Upload
-# -------------------------------
+# =====================================================
+# CSV UPLOAD SECTION
+# =====================================================
 
 if method == "CSV Upload":
+
     uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
 
     if uploaded_file:
@@ -59,13 +84,19 @@ if method == "CSV Upload":
             st.stop()
 
         for _, row in df_csv.iterrows():
+
             categories = {"type": "url", "value": row["url"]}
 
-            if row["category"]: categories["category"] = row["category"]
-            if row["sub_category"]: categories["sub_category"] = row["sub_category"]
-            if row["sub_sub_category"]: categories["sub_sub_category"] = row["sub_sub_category"]
-            if row["sub_sub_sub_category"]: categories["sub_sub_sub_category"] = row["sub_sub_sub_category"]
-            if row["sub_sub_sub_sub_category"]: categories["sub_sub_sub_sub_category"] = row["sub_sub_sub_sub_category"]
+            if row["category"]:
+                categories["category"] = row["category"]
+            if row["sub_category"]:
+                categories["sub_category"] = row["sub_category"]
+            if row["sub_sub_category"]:
+                categories["sub_sub_category"] = row["sub_sub_category"]
+            if row["sub_sub_sub_category"]:
+                categories["sub_sub_sub_category"] = row["sub_sub_sub_category"]
+            if row["sub_sub_sub_sub_category"]:
+                categories["sub_sub_sub_sub_category"] = row["sub_sub_sub_sub_category"]
 
             data_list.append({
                 "customer": row["customer"],
@@ -77,13 +108,16 @@ if method == "CSV Upload":
                 "input_detail": json.dumps(categories)
             })
 
-# -------------------------------
-# Manual Entry
-# -------------------------------
+        st.success("CSV Processed Successfully")
+
+# =====================================================
+# MANUAL ENTRY SECTION
+# =====================================================
 
 elif method == "Manual Entry":
 
     with st.form("manual_form"):
+
         customer = st.text_input("Customer")
         platform = st.text_input("Platform")
         web_or_app = st.text_input("Web or App")
@@ -92,6 +126,7 @@ elif method == "Manual Entry":
         city_display_name = st.text_input("City Display Name")
 
         st.subheader("Categories (Optional)")
+
         category = st.text_input("Category")
         sub_category = st.text_input("Sub Category")
         sub_sub_category = st.text_input("Sub Sub Category")
@@ -101,29 +136,39 @@ elif method == "Manual Entry":
         submitted = st.form_submit_button("Add Entry")
 
         if submitted:
-            categories = {"type": "url", "value": url}
 
-            if category: categories["category"] = category
-            if sub_category: categories["sub_category"] = sub_category
-            if sub_sub_category: categories["sub_sub_category"] = sub_sub_category
-            if sub_sub_sub_category: categories["sub_sub_sub_category"] = sub_sub_sub_category
-            if sub_sub_sub_sub_category: categories["sub_sub_sub_sub_category"] = sub_sub_sub_sub_category
+            if not all([customer, platform, web_or_app, url, location_id, city_display_name]):
+                st.error("Please fill all mandatory fields.")
+            else:
 
-            data_list.append({
-                "customer": customer,
-                "platform": platform.lower(),
-                "web_or_app": web_or_app.lower(),
-                "url": url,
-                "location_id": location_id,
-                "city_display_name": city_display_name,
-                "input_detail": json.dumps(categories)
-            })
+                categories = {"type": "url", "value": url}
 
-            st.success("Entry Added Successfully")
+                if category:
+                    categories["category"] = category
+                if sub_category:
+                    categories["sub_category"] = sub_category
+                if sub_sub_category:
+                    categories["sub_sub_category"] = sub_sub_category
+                if sub_sub_sub_category:
+                    categories["sub_sub_sub_category"] = sub_sub_sub_category
+                if sub_sub_sub_sub_category:
+                    categories["sub_sub_sub_sub_category"] = sub_sub_sub_sub_category
 
-# -------------------------------
-# Generate Excel
-# -------------------------------
+                data_list.append({
+                    "customer": customer.strip(),
+                    "platform": platform.strip().lower(),
+                    "web_or_app": web_or_app.strip().lower(),
+                    "url": url.strip(),
+                    "location_id": location_id.strip(),
+                    "city_display_name": city_display_name.strip(),
+                    "input_detail": json.dumps(categories)
+                })
+
+                st.success("Entry Added Successfully")
+
+# =====================================================
+# GENERATE EXCEL
+# =====================================================
 
 if data_list:
 
@@ -136,6 +181,7 @@ if data_list:
     today_day = datetime.now().strftime("%A")
 
     for entry in data_list:
+
         customer = entry["customer"]
         platform = entry["platform"]
         web_or_app = entry["web_or_app"]
@@ -199,8 +245,8 @@ if data_list:
 
     input_df["input_detail"] = input_df["input_detail"].apply(clean_input_detail)
 
-    # Create Excel in memory
     output = io.BytesIO()
+
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
         config_df.to_excel(writer, sheet_name="config", index=False)
         input_df.to_excel(writer, sheet_name="input", index=False)
@@ -209,6 +255,8 @@ if data_list:
         location_df.to_excel(writer, sheet_name="location", index=False)
 
     output.seek(0)
+
+    st.divider()
 
     st.download_button(
         label="Download Excel File",
